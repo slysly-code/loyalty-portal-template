@@ -2,16 +2,72 @@
 
 This document contains key learnings from implementing a Loyalty Portal with Salesforce Loyalty Management APIs.
 
-## API Endpoints
+## Get Member Promotions (Eligibility)
 
-### Promotion Enrollment
+**Important:** This API requires a Loyalty Program Process to be created in Salesforce first.
 
-**Documented endpoint (DOES NOT WORK):**
+### Setup Steps:
+1. Go to Setup → Loyalty Program Processes
+2. Create a new process using the **"Get Member Promotions"** template
+3. Name it (e.g., `GetEligiblePromotions`)
+4. Configure output parameters:
+   - `promotionName` (Text, Variable)
+   - `memberEligibilityCategory` (Text, Variable)
+5. **Activate the Process Rule** inside the process (often missed!)
+6. Activate the process itself
+
+See: https://help.salesforce.com/s/articleView?id=xcloud.bapi_task_get_member_promotions_process_template.htm
+
+### Endpoint:
 ```
-POST /services/data/v65.0/connect/loyalty/programs/{programName}/enroll-in-promotion
+POST /services/data/v65.0/connect/loyalty/programs/{programName}/program-processes/{processName}
 ```
 
-**Working endpoint:**
+### Request body:
+```json
+{
+  "processParameters": [{
+    "MembershipNumber": "E-003"
+  }]
+}
+```
+
+### Response:
+```json
+{
+  "message": null,
+  "outputParameters": {
+    "outputParameters": {
+      "results": [
+        {
+          "memberEligibilityCategory": "EligibleButNotEnrolled",
+          "promotionEnrollmentRqr": true,
+          "promotionId": "0c8KB...",
+          "promotionName": "DoubleTrouble",
+          "startDate": "2025-12-01",
+          "endDate": "2025-12-31"
+        },
+        {
+          "memberEligibilityCategory": "Ineligible",
+          "promotionEnrollmentRqr": false,
+          "promotionId": "0c8KB...",
+          "promotionName": "Gas Promotion"
+        }
+      ]
+    }
+  },
+  "status": true
+}
+```
+
+### Eligibility Categories:
+- `Eligible` - Member is enrolled (for enrollment-required promotions)
+- `EligibleButNotEnrolled` - Can enroll but hasn't yet
+- `Ineligible` - Member doesn't meet eligibility criteria
+
+## Promotion Enrollment
+
+**Endpoint:**
 ```
 POST /services/data/v65.0/connect/loyalty/programs/{programName}/program-processes/Enroll
 ```
@@ -19,33 +75,33 @@ POST /services/data/v65.0/connect/loyalty/programs/{programName}/program-process
 **Request body:**
 ```json
 {
-  "processParameters": [
-    {
-      "MembershipNumber": "E-001",
-      "PromotionName": "DoubleTrouble"
-    }
-  ]
+  "processParameters": [{
+    "MembershipNumber": "E-001",
+    "PromotionName": "DoubleTrouble"
+  }]
 }
 ```
 
-### Key Objects and Fields
+**Note**: The documented endpoint `/connect/loyalty/programs/{programName}/enroll-in-promotion` returns 404. The working endpoint uses `/program-processes/Enroll`.
 
-#### LoyaltyTier
+## Key Objects and Fields
+
+### LoyaltyTier
 - `MinimumEligibleBalance` - Minimum points to qualify for tier
-- `MaximumEligibleBalance` - Maximum points before next tier
+- `MaximumEligibleBalance` - Maximum points before next tier (null for highest)
 - `SequenceNumber` - Order of tiers (1=lowest, 2, 3, etc.)
 - `LoyaltyTierGroupId` - Links tiers to a tier group
 
-#### LoyaltyProgramCurrency
+### LoyaltyProgramCurrency
 - `IsQualifyingCurrency` - Boolean indicating if currency affects tier status
 - Use this to distinguish qualifying (tier) vs non-qualifying (spendable) points
 
-#### LoyaltyMemberCurrency
+### LoyaltyMemberCurrency
 - `PointsBalance` - Current balance
 - `LoyaltyProgramCurrency.Name` - Name of the currency type
 
-#### LoyaltyPgmGroupMbrRlnsp (Group Member Relationship)
-- Object name is abbreviated
+### LoyaltyPgmGroupMbrRlnsp (Group Member Relationship)
+- Object name is abbreviated!
 - `LoyaltyProgramGroupMemberId` - The group owner
 - `RelatedLoyaltyProgramMemberId` - Individual members in the group
 - `MemberPointContributionPercent` - How much each member contributes
@@ -140,8 +196,12 @@ grant_type=client_credentials&client_id={key}&client_secret={secret}
 - Use `/program-processes/Enroll` not `/enroll-in-promotion`
 - Program name must be URL-encoded
 
+### Empty outputParameters from GetMemberPromotions
+- Check that the **Process Rule** inside the process is **Activated** (not just the process itself)
+- Verify output parameters are configured
+
 ### No Points Showing
-- Check LoyaltyMemberCurrency records exist
+- Check `LoyaltyMemberCurrency` records exist
 - Currency names are case-sensitive
 
 ### Tier Not Updating

@@ -23,7 +23,12 @@ module.exports = {
             qualifying: null,      // e.g., 'Tier Points', 'Status Points'
             // Non-qualifying currency - spendable rewards
             nonQualifying: null    // e.g., 'Reward Points', 'Bonus Points'
-        }
+        },
+        
+        // Name of the Loyalty Program Process for getting eligible promotions
+        // Must be created in Salesforce using "Get Member Promotions" template
+        // See README.md for setup instructions
+        eligiblePromotionsProcess: 'GetEligiblePromotions'
     },
     
     // Portal Branding

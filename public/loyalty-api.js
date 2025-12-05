@@ -5,6 +5,7 @@ class LoyaltyAPIService {
         this.config = null;
         this.currencyNames = { qualifying: null, nonQualifying: null };
         this.programInfo = { id: null, name: null };
+        this.processNames = { eligiblePromotions: 'GetEligiblePromotions' }; // Configurable process name
     }
 
     async loadConfig() {
@@ -24,6 +25,9 @@ class LoyaltyAPIService {
         }
         if (this.config.loyalty?.programName) {
             this.programInfo.name = this.config.loyalty.programName;
+        }
+        if (this.config.loyalty?.eligiblePromotionsProcess) {
+            this.processNames.eligiblePromotions = this.config.loyalty.eligiblePromotionsProcess;
         }
         
         return this.config;
@@ -55,12 +59,9 @@ class LoyaltyAPIService {
             }
         });
         
-        // If still not detected, use first two currencies
-        if (!this.currencyNames.qualifying && !this.currencyNames.nonQualifying && result.records?.length > 0) {
+        // If still not detected, use first currency as non-qualifying
+        if (!this.currencyNames.nonQualifying && result.records?.length > 0) {
             this.currencyNames.nonQualifying = result.records[0]?.LoyaltyProgramCurrency?.Name;
-            if (result.records.length > 1) {
-                this.currencyNames.qualifying = result.records[1]?.LoyaltyProgramCurrency?.Name;
-            }
         }
         
         console.log('Detected currencies:', this.currencyNames);
@@ -194,25 +195,30 @@ class LoyaltyAPIService {
         return result.records || [];
     }
 
+    async getMemberEligiblePromotions(programName, membershipNumber) {
+        const pName = programName || this.programInfo.name;
+        const processName = this.processNames.eligiblePromotions;
+        
+        const url = `${this.baseUrl}/connect/loyalty/programs/${encodeURIComponent(pName)}/program-processes/${encodeURIComponent(processName)}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                processParameters: [{
+                    MembershipNumber: membershipNumber
+                }]
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data[0]?.message || data.message || 'Failed to get promotions');
+        return data.outputParameters?.outputParameters?.results || [];
+    }
+
     async getMemberEnrolledPromotions(memberId) {
         const result = await this.query(
             `SELECT Id, PromotionId, Promotion.Name, Promotion.Description, IsEnrollmentActive FROM LoyaltyProgramMbrPromotion WHERE LoyaltyProgramMemberId = '${memberId}'`
         );
         return result.records || [];
-    }
-
-    async getEnrolledPromotionsForMembers(memberIds) {
-        if (!memberIds.length) return {};
-        const idList = memberIds.map(id => `'${id}'`).join(',');
-        const result = await this.query(
-            `SELECT LoyaltyProgramMemberId, PromotionId, Promotion.Name FROM LoyaltyProgramMbrPromotion WHERE LoyaltyProgramMemberId IN (${idList})`
-        );
-        const enrollmentMap = {};
-        result.records?.forEach(r => {
-            if (!enrollmentMap[r.LoyaltyProgramMemberId]) enrollmentMap[r.LoyaltyProgramMemberId] = [];
-            enrollmentMap[r.LoyaltyProgramMemberId].push({ id: r.PromotionId, name: r.Promotion?.Name });
-        });
-        return enrollmentMap;
     }
 
     async enrollInPromotion(programName, membershipNumber, promotionName) {

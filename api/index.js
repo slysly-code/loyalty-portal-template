@@ -102,7 +102,8 @@ module.exports = async (req, res) => {
                 currencies: {
                     qualifying: process.env.QUALIFYING_CURRENCY || null,
                     nonQualifying: process.env.NON_QUALIFYING_CURRENCY || null
-                }
+                },
+                eligiblePromotionsProcess: process.env.ELIGIBLE_PROMOTIONS_PROCESS || 'GetEligiblePromotions'
             },
             demo: {
                 enabled: process.env.DEMO_ENABLED === 'true',

@@ -65,6 +65,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 welcome: 'Willkommen!',
                 collectPoints: 'Sammeln Sie Punkte für exklusive Prämien.',
                 noPromotions: 'Keine aktiven Aktionen',
+                noEligiblePromotions: 'Keine verfügbaren Aktionen',
+                noPromotionsForYou: 'Aktuell sind keine Aktionen für Sie verfügbar.',
                 checkBackSoon: 'Schauen Sie bald wieder vorbei!',
                 enrolled: 'Angemeldet',
                 enrollNow: 'Jetzt anmelden',
@@ -74,7 +76,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 enrollFailed: 'Anmeldung fehlgeschlagen',
                 partOfHousehold: 'Teil des Haushalts',
                 showHousehold: 'Haushalt anzeigen',
-                promotionsError: 'Aktionen konnten nicht geladen werden.'
+                promotionsError: 'Aktionen konnten nicht geladen werden.',
+                profitFromPromotion: 'Profitieren Sie von dieser exklusiven Aktion!'
             },
             en: {
                 enterMemberId: 'Please enter your membership number.',
@@ -95,6 +98,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 welcome: 'Welcome!',
                 collectPoints: 'Collect points for exclusive rewards.',
                 noPromotions: 'No active promotions',
+                noEligiblePromotions: 'No available promotions',
+                noPromotionsForYou: 'No promotions are currently available for you.',
                 checkBackSoon: 'Check back soon!',
                 enrolled: 'Enrolled',
                 enrollNow: 'Enroll now',
@@ -104,7 +109,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 enrollFailed: 'Enrollment failed',
                 partOfHousehold: 'Part of household',
                 showHousehold: 'Show household',
-                promotionsError: 'Could not load promotions.'
+                promotionsError: 'Could not load promotions.',
+                profitFromPromotion: 'Take advantage of this exclusive promotion!'
             }
         };
         const lang = config?.language || 'de';
@@ -297,18 +303,29 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     async function renderGroupMembersWithPoints() {
         const grid = document.getElementById('householdGrid');
-        const memberIds = groupMembers.map(gm => gm.RelatedLoyaltyProgramMemberId);
-        const programId = loyaltyAPI.getProgramId();
+        const programName = loyaltyAPI.getProgramName();
         const currencyName = loyaltyAPI.getNonQualifyingCurrencyName();
         
-        const [pointsMap, enrollmentMap, allPromotions] = await Promise.all([
-            loyaltyAPI.getPointsForMembers(memberIds),
-            loyaltyAPI.getEnrolledPromotionsForMembers(memberIds),
-            loyaltyAPI.getAvailablePromotions(programId)
-        ]);
+        // Get points for all members
+        const memberIds = groupMembers.map(gm => gm.RelatedLoyaltyProgramMemberId);
+        const pointsMap = await loyaltyAPI.getPointsForMembers(memberIds);
+        
+        // Get eligible promotions for each member
+        const eligibilityMap = {};
+        for (const gm of groupMembers) {
+            const memberNumber = gm.RelatedLoyaltyProgramMember?.MembershipNumber;
+            if (memberNumber) {
+                try {
+                    const promos = await loyaltyAPI.getMemberEligiblePromotions(programName, memberNumber);
+                    eligibilityMap[gm.RelatedLoyaltyProgramMemberId] = promos;
+                } catch (e) {
+                    console.log('Failed to get promotions for', memberNumber, e);
+                    eligibilityMap[gm.RelatedLoyaltyProgramMemberId] = [];
+                }
+            }
+        }
         
         const totalPoints = Object.values(pointsMap).reduce((sum, p) => sum + (p.nonQualifyingPoints || 0), 0);
-        const enrollmentRequiredPromos = allPromotions.filter(p => p.IsEnrollmentRequired);
         
         document.getElementById('householdMembers').textContent = groupMembers.length;
 
@@ -318,18 +335,22 @@ document.addEventListener('DOMContentLoaded', async function() {
             const memberId = gm.RelatedLoyaltyProgramMemberId;
             const name = m.Contact?.Name || t('member');
             const memberPoints = pointsMap[memberId] || { nonQualifyingPoints: 0 };
-            const enrolledPromos = enrollmentMap[memberId] || [];
-            const enrolledIds = enrolledPromos.map(ep => ep.id);
+            const memberPromos = eligibilityMap[memberId] || [];
             
-            // Build promotion badges
+            // Build promotion badges based on eligibility
             let promoHtml = '';
-            if (enrollmentRequiredPromos.length > 0) {
-                const enrolled = enrolledPromos.map(ep => `<span class="promo-badge enrolled">✓ ${ep.name}</span>`).join('');
-                const notEnrolled = enrollmentRequiredPromos
-                    .filter(p => !enrolledIds.includes(p.Id))
-                    .map(p => `<span class="promo-badge not-enrolled" onclick="event.stopPropagation(); window.enrollMemberInPromotion('${m.MembershipNumber}', '${p.Name}')">+ ${p.Name}</span>`)
-                    .join('');
-                promoHtml = enrolled + notEnrolled;
+            const eligiblePromos = memberPromos.filter(p => p.memberEligibilityCategory !== 'Ineligible');
+            if (eligiblePromos.length > 0) {
+                promoHtml = eligiblePromos.map(p => {
+                    if (p.memberEligibilityCategory === 'Eligible' && p.promotionEnrollmentRqr) {
+                        return `<span class="promo-badge enrolled">✓ ${p.promotionName}</span>`;
+                    } else if (p.memberEligibilityCategory === 'EligibleButNotEnrolled') {
+                        return `<span class="promo-badge not-enrolled" onclick="event.stopPropagation(); window.enrollMemberInPromotion('${m.MembershipNumber}', '${p.promotionName}')">+ ${p.promotionName}</span>`;
+                    } else if (!p.promotionEnrollmentRqr && p.memberEligibilityCategory === 'Eligible') {
+                        return `<span class="promo-badge enrolled">✓ ${p.promotionName}</span>`;
+                    }
+                    return '';
+                }).join('');
             }
             
             return `<div class="household-member clickable" onclick="window.selectMember('${m.MembershipNumber}')">
@@ -409,45 +430,47 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!grid) return;
         
         try {
-            const programId = loyaltyAPI.getProgramId();
-            const [allPromotions, enrolledPromotions] = await Promise.all([
-                loyaltyAPI.getAvailablePromotions(programId),
-                loyaltyAPI.getMemberEnrolledPromotions(member.Id)
-            ]);
+            const programName = loyaltyAPI.getProgramName();
+            const promotions = await loyaltyAPI.getMemberEligiblePromotions(programName, member.MembershipNumber);
             
-            const enrolledIds = enrolledPromotions.map(ep => ep.PromotionId);
-            const today = new Date().toISOString().split('T')[0];
+            console.log('Member eligible promotions:', promotions);
             
-            if (!allPromotions.length) {
+            if (!promotions.length) {
                 grid.innerHTML = `<div class="promo-card"><div class="promo-icon">📢</div><div class="promo-content"><h3>${t('noPromotions')}</h3><p>${t('checkBackSoon')}</p></div></div>`;
                 return;
             }
             
-            grid.innerHTML = allPromotions.map(promo => {
-                const isEnrolled = enrolledIds.includes(promo.Id);
-                const needsEnrollment = promo.IsEnrollmentRequired;
-                const enrollmentOpen = promo.EnrollmentStartDate <= today && (!promo.EnrollmentEndDate || promo.EnrollmentEndDate >= today);
+            // Filter to only show eligible promotions (not ineligible)
+            const eligiblePromotions = promotions.filter(p => p.memberEligibilityCategory !== 'Ineligible');
+            
+            if (!eligiblePromotions.length) {
+                grid.innerHTML = `<div class="promo-card"><div class="promo-icon">📢</div><div class="promo-content"><h3>${t('noEligiblePromotions')}</h3><p>${t('noPromotionsForYou')}</p></div></div>`;
+                return;
+            }
+            
+            grid.innerHTML = eligiblePromotions.map(promo => {
+                const isEnrolled = promo.memberEligibilityCategory === 'Eligible';
+                const canEnroll = promo.memberEligibilityCategory === 'EligibleButNotEnrolled';
+                const needsEnrollment = promo.promotionEnrollmentRqr;
                 
                 let statusHtml = '';
                 let actionHtml = '';
                 
-                if (isEnrolled) {
+                if (isEnrolled && needsEnrollment) {
                     statusHtml = `<span class="promo-status enrolled">✓ ${t('enrolled')}</span>`;
-                } else if (needsEnrollment && enrollmentOpen) {
-                    actionHtml = `<button class="btn-primary btn-small" onclick="window.enrollInPromotion('${promo.Name}')">${t('enrollNow')}</button>`;
-                } else if (needsEnrollment && !enrollmentOpen) {
-                    statusHtml = `<span class="promo-status">${t('enrollmentClosed')}</span>`;
-                } else {
+                } else if (canEnroll && needsEnrollment) {
+                    actionHtml = `<button class="btn-primary btn-small" onclick="window.enrollInPromotion('${promo.promotionName}')">${t('enrollNow')}</button>`;
+                } else if (!needsEnrollment) {
                     statusHtml = `<span class="promo-status active">${t('autoActive')}</span>`;
                 }
                 
-                const dateRange = promo.StartDate ? `${formatDate(promo.StartDate)}${promo.EndDate ? ' - ' + formatDate(promo.EndDate) : ''}` : '';
+                const dateRange = promo.startDate ? `${formatDate(promo.startDate)}${promo.endDate ? ' - ' + formatDate(promo.endDate) : ''}` : '';
                 
                 return `<div class="promo-card ${isEnrolled ? 'enrolled' : ''}">
                     <div class="promo-icon">🎯</div>
                     <div class="promo-content">
-                        <h3>${promo.Name}</h3>
-                        <p>${promo.Description || ''}</p>
+                        <h3>${promo.promotionName}</h3>
+                        <p>${t('profitFromPromotion')}</p>
                         ${dateRange ? `<span class="promo-dates">${dateRange}</span>` : ''}
                         <div class="promo-footer">${statusHtml}${actionHtml}</div>
                     </div>

@@ -139,7 +139,8 @@ function serveConfig(res) {
         loyalty: {
             programName: config.loyalty.programName,
             programId: config.loyalty.programId,
-            currencies: config.loyalty.currencies
+            currencies: config.loyalty.currencies,
+            eligiblePromotionsProcess: config.loyalty.eligiblePromotionsProcess || 'GetEligiblePromotions'
         },
         demo: config.demo
     };
