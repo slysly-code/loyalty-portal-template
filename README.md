@@ -34,19 +34,32 @@ A configurable, ready-to-deploy loyalty program member portal that integrates wi
 6. Run As: Select user with Loyalty data access
 7. Save and note Consumer Key and Consumer Secret
 
-### 2. Create Loyalty Program Process for Eligible Promotions
+### 2. Create Required Loyalty Program Processes
 
-**Important:** This step is required for the portal to show correct promotion eligibility per member.
+**Important:** Two processes are required for full functionality.
+
+#### Process 1: Enroll (for promotion enrollment)
+
+1. Setup → Loyalty Program Processes → New
+2. Select template: **"Enroll in Promotions"**
+3. Name: `Enroll` (must match exactly)
+4. Associate with your Loyalty Program
+5. Activate the Process Rule inside the process
+6. Activate the process
+
+See: https://help.salesforce.com/s/articleView?id=xcloud.bapi_task_enroll_for_promotions_process_template.htm
+
+#### Process 2: GetEligiblePromotions (for showing eligible promotions)
 
 1. Setup → Loyalty Program Processes → New
 2. Select template: **"Get Member Promotions"**
-3. Name: `GetEligiblePromotions` (or your preferred name - update config accordingly)
+3. Name: `GetEligiblePromotions` (or configure in config.js)
 4. Associate with your Loyalty Program
 5. Configure output parameters:
-   - `promotionName` (Text)
-   - `memberEligibilityCategory` (Text)
+   - `promotionName` (Text, Variable)
+   - `memberEligibilityCategory` (Text, Variable)
 6. Activate the Process Rule inside the process
-7. Save and Activate the process
+7. Activate the process
 
 See: https://help.salesforce.com/s/articleView?id=xcloud.bapi_task_get_member_promotions_process_template.htm
 

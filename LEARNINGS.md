@@ -67,12 +67,23 @@ POST /services/data/v65.0/connect/loyalty/programs/{programName}/program-process
 
 ## Promotion Enrollment
 
-**Endpoint:**
+**Important:** This API requires a Loyalty Program Process named `Enroll` to be created in Salesforce.
+
+### Setup:
+1. Setup → Loyalty Program Processes → New
+2. Select template: **"Enroll in Promotions"**
+3. Name: `Enroll` (must match exactly - the portal uses this name)
+4. Activate the Process Rule inside
+5. Activate the process
+
+See: https://help.salesforce.com/s/articleView?id=xcloud.bapi_task_enroll_for_promotions_process_template.htm
+
+### Endpoint:
 ```
 POST /services/data/v65.0/connect/loyalty/programs/{programName}/program-processes/Enroll
 ```
 
-**Request body:**
+### Request body:
 ```json
 {
   "processParameters": [{
