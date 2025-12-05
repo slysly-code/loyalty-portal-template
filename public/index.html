@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loyalty Program</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Household Dialog -->
+    <div id="householdDialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog-card">
+            <div class="dialog-icon">🏠</div>
+            <h2>Household Found</h2>
+            <p>We found other contracts with the same contact. Would you like to link them?</p>
+            <div class="dialog-contracts" id="dialogContracts"></div>
+            <div class="dialog-benefits">
+                <h4>Benefits:</h4>
+                <ul>
+                    <li>✓ Pool points together</li>
+                    <li>✓ Reach rewards faster</li>
+                    <li>✓ Overview of all contracts</li>
+                </ul>
+            </div>
+            <div class="dialog-actions">
+                <button class="btn-secondary" onclick="closeHouseholdDialog(false)">No, thanks</button>
+                <button class="btn-primary" onclick="closeHouseholdDialog(true)">Yes, link</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <span class="logo-text">Loyalty Program</span>
+            </div>
+            <nav class="nav">
+                <span class="nav-item active">Account</span>
+                <span class="nav-item">Rewards</span>
+                <span class="nav-item">Household</span>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Login Section -->
+        <section class="login-section" id="loginSection">
+            <div class="login-card">
+                <h1>Welcome to your Loyalty Program</h1>
+                <p>Enter your membership number to see your points and rewards.</p>
+                <div class="input-group">
+                    <input type="text" id="emailInput" placeholder="e.g. M-001" />
+                    <button class="btn-primary" id="loginBtn">Login</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard -->
+        <section class="dashboard" id="dashboard" style="display: none;">
+            <div class="welcome-banner">
+                <h1>Hello, <span id="memberName">Member</span>!</h1>
+                <p class="tier-badge" id="tierBadge">Member</p> <span id="memberIdDisplay" style="font-size: 0.9rem; opacity: 0.8; margin-left: 0.5rem;"></span>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">⭐</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Points Balance</span>
+                        <span class="stat-value" id="pointsBalance">0</span>
+                        <span class="stat-sublabel" id="pointsLabel">Points available</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏆</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Your Status</span>
+                        <span class="stat-value" id="tierStatus">Bronze</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="tierProgress" style="width: 0%"></div>
+                        </div>
+                        <span class="stat-sublabel"><span id="pointsToNext">1,000</span> Points to Silver</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏠</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Household</span>
+                        <span class="stat-value" id="householdMembers">1</span>
+                        <span class="stat-sublabel">Members</span>
+                    </div>
+                </div>
+            </div>
+
+            <section class="household-section">
+                <h2>My Household</h2>
+                <div class="household-card" id="householdGrid"></div>
+            </section>
+
+            <section class="promotions-section">
+                <h2>Promotions</h2>
+                <div class="promotions-grid" id="promotionsGrid"></div>
+            </section>
+
+            <section class="rewards-section">
+                <h2>Available Rewards</h2>
+                <div class="rewards-grid" id="rewardsGrid"></div>
+            </section>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>© 2025 Loyalty Program</p>
+    </footer>
+
+    <script src="loyalty-api.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

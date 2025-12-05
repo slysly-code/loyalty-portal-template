@@ -1,0 +1,12 @@
+{
+  "name": "loyalty-portal-template",
+  "version": "1.0.0",
+  "description": "Salesforce Loyalty Management Portal Template",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["salesforce", "loyalty", "portal"],
+  "license": "MIT"
+}

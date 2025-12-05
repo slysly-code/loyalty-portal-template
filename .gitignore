@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Configuration (contains secrets)
+config.js
+
+# Vercel
+.vercel/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
